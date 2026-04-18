@@ -1,5 +1,7 @@
 # ACME RFC8555 Lab (Kubernetes)
 
+<img width="622" height="678" alt="image" src="https://github.com/user-attachments/assets/b6812ef4-558c-489d-8c7e-b052de5df610" />
+
 A self-contained lab to test ACME protocol flows using:
 
 * Pebble (ACME test CA)
@@ -87,7 +89,7 @@ kubectl get secret test-cert-secret
 
 ---
 
-## 🧠 Notes
+## Notes
 
 * Uses `.local` domain (safe for lab)
 * `skipTLSVerify` enabled for Pebble
@@ -96,7 +98,7 @@ kubectl get secret test-cert-secret
 
 ---
 
-## 🧹 Cleanup
+## Cleanup
 
 ```bash
 kubectl delete -f manifests/acme-rfc8555-lab.yaml
@@ -105,7 +107,7 @@ kubectl delete secret pebble-cert rfc2136-tsig-secret
 
 ---
 
-## 📌 Future Enhancements
+## Future Enhancements
 
 * Ingress + HTTPS demo app
 * Replace Bind9 with cloud DNS (Route53, Azure DNS)
