@@ -1,0 +1,173 @@
+# =========================
+# ACME-RFC8555-Lab.yaml
+# =========================
+
+# =========================
+# 1. BIND9 DNS (RFC2136)
+# =========================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bind-config
+data:
+  named.conf: |
+    options {
+      directory "/var/cache/bind";
+      listen-on { any; };
+      allow-query { any; };
+      recursion no;
+    };
+
+    key "cert-manager-key" {
+      algorithm hmac-sha256;
+      secret "REPLACE_WITH_TSIG_SECRET_GENERATED_USING_SCRIPT";
+    };
+
+    zone "example.local" {
+      type master;
+      file "/etc/bind/db.example.local";
+      allow-update { key "cert-manager-key"; };
+    };
+
+  db.example.local: |
+    $ORIGIN example.local.
+
+    @   IN  SOA ns.example.local. admin.example.local. (
+            1 7200 3600 1209600 3600 )
+
+        IN NS ns.example.local.
+
+    @   IN A 10.0.0.1
+    ns  IN A 10.0.0.1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bind9
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bind9
+  template:
+    metadata:
+      labels:
+        app: bind9
+    spec:
+      containers:
+      - name: bind9
+        image: internetsystemsconsortium/bind9:9.18
+        args: ["-g", "-c", "/etc/bind/named.conf"]
+        ports:
+        - containerPort: 53
+          protocol: UDP
+        - containerPort: 53
+          protocol: TCP
+        volumeMounts:
+        - name: config
+          mountPath: /etc/bind
+        - name: cache
+          mountPath: /var/cache/bind
+      volumes:
+      - name: config
+        configMap:
+          name: bind-config
+      - name: cache
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bind9
+spec:
+  selector:
+    app: bind9
+  ports:
+  - port: 53
+    protocol: UDP
+  - port: 53
+    protocol: TCP
+
+# =========================
+# 2. Pebble (ACME CA)
+# =========================
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pebble-config
+data:
+  pebble-config.json: |
+    {
+      "listenAddress": "0.0.0.0:14000",
+      "certificate": "/certs/pebble.crt",
+      "privateKey": "/certs/pebble.key"
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pebble
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pebble
+  template:
+    metadata:
+      labels:
+        app: pebble
+    spec:
+      containers:
+      - name: pebble
+        image: ghcr.io/letsencrypt/pebble:latest
+        args: ["-config", "/config/pebble-config.json"]
+        ports:
+        - containerPort: 14000
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: certs
+          mountPath: /certs
+      volumes:
+      - name: config
+        configMap:
+          name: pebble-config
+      - name: certs
+        secret:
+          secretName: pebble-cert   # MUST exist
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pebble
+spec:
+  selector:
+    app: pebble
+  ports:
+  - port: 14000
+    targetPort: 14000
+
+# =========================
+# 3. cert-manager (Issuer only)
+# =========================
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: pebble-issuer
+spec:
+  acme:
+    server: https://pebble.default.svc.cluster.local:14000/dir
+    skipTLSVerify: true
+    privateKeySecretRef:
+      name: pebble-account-key
+    solvers:
+    - dns01:
+        rfc2136:
+          nameserver: bind9.default.svc.cluster.local:53
+          tsigKeyName: cert-manager-key
+          tsigAlgorithm: HmacSHA256
+          tsigSecretSecretRef:
+            name: rfc2136-tsig-secret
+            key: secret
