@@ -10,13 +10,13 @@ This setup is designed for local environments (Minikube, kind, WSL) and enables 
 
 ---
 
-## 🧱 Architecture
+## Architecture
 
 cert-manager → RFC2136 → Bind9 DNS → TXT Record → Pebble → Certificate Issued
 
 ---
 
-## 🚀 Prerequisites
+## Prerequisites
 
 * Kubernetes cluster (Minikube / kind / etc.)
 * kubectl
@@ -24,7 +24,7 @@ cert-manager → RFC2136 → Bind9 DNS → TXT Record → Pebble → Certificate
 
 ---
 
-## 🔐 Step 1: Generate Secrets
+## Step 1: Generate Secrets
 
 ### Generate TSIG Key
 
@@ -61,7 +61,7 @@ kubectl create secret generic rfc2136-tsig-secret \
 
 ---
 
-## 📦 Step 2: Deploy Lab
+## Step 2: Deploy Lab
 
 ```bash
 kubectl apply -f manifests/acme-rfc8555-lab.yaml
@@ -69,7 +69,7 @@ kubectl apply -f manifests/acme-rfc8555-lab.yaml
 
 ---
 
-## 🧪 Step 3: Create Certificate
+## Step 3: Create Certificate
 
 ```bash
 kubectl apply -f examples/certificate.yaml
@@ -77,7 +77,7 @@ kubectl apply -f examples/certificate.yaml
 
 ---
 
-## 🔍 Verify
+## Verify
 
 ```bash
 kubectl get certificates
